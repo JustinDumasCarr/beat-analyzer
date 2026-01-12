@@ -13,10 +13,6 @@
   - Analyze multiple files at once
   - Output combined JSON/CSV
 
-- [ ] **Add key detection**
-  - Detect musical key for harmonic mixing
-  - Use librosa or essentia
-
 - [ ] **Dockerize**
   - Create Dockerfile for deployment
   - Include all dependencies
@@ -34,6 +30,7 @@
 - [x] **allin1 integration** - Patched natten compatibility, now provides semantic section labels (intro/verse/chorus/etc.)
 - [x] **Phrase detection** - 4-bar and 8-bar phrase grouping from downbeats
 - [x] **Energy analysis** - Classify phrases as buildup/drop/stable/high/low using RMS + spectral centroid
+- [x] **Key detection** - Musical key with Camelot notation for DJ harmonic mixing (Krumhansl-Schmuckler algorithm)
 
 ## Fixed Issues
 

@@ -34,6 +34,7 @@ beat-analyzer/
 
 Analyzes audio files and extracts:
 - **BPM** - Tempo in beats per minute
+- **Key** - Musical key with Camelot notation for harmonic mixing (e.g., "A minor (8A)")
 - **Beats** - Precise timestamp of every beat
 - **Downbeats** - Bar boundaries (first beat of each bar)
 - **Phrases** - 4-bar and 8-bar musical phrase groupings
@@ -76,6 +77,10 @@ pytest tests/
 {
   "file": "song.mp3",
   "bpm": 128.0,
+  "key": "A",
+  "key_scale": "minor",
+  "key_camelot": "8A",
+  "key_confidence": 0.762,
   "beats": [0.234, 0.702, ...],
   "downbeats": [0.234, 2.104, ...],
   "phrases": [

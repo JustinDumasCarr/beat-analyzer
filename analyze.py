@@ -163,6 +163,82 @@ def detect_energy_sections(y: np.ndarray, sr: int, phrases: List[Dict]) -> List[
     return phrases
 
 
+# Krumhansl-Schmuckler key profiles (perceptual weightings for pitch classes)
+MAJOR_PROFILE = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
+MINOR_PROFILE = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
+
+# Note names (chromagram order: C, C#, D, D#, E, F, F#, G, G#, A, A#, B)
+NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+# Camelot wheel mapping for DJ harmonic mixing
+CAMELOT_MAJOR = {
+    'C': '8B', 'G': '9B', 'D': '10B', 'A': '11B', 'E': '12B', 'B': '1B',
+    'F#': '2B', 'C#': '3B', 'G#': '4B', 'D#': '5B', 'A#': '6B', 'F': '7B'
+}
+CAMELOT_MINOR = {
+    'A': '8A', 'E': '9A', 'B': '10A', 'F#': '11A', 'C#': '12A', 'G#': '1A',
+    'D#': '2A', 'A#': '3A', 'F': '4A', 'C': '5A', 'G': '6A', 'D': '7A'
+}
+
+
+def detect_key(y: np.ndarray, sr: int) -> Dict:
+    """
+    Detect musical key using Krumhansl-Schmuckler algorithm.
+
+    Analyzes the chromagram (pitch class distribution) and correlates it
+    with major/minor key profiles to find the best matching key.
+
+    Args:
+        y: Audio time series
+        sr: Sample rate
+
+    Returns:
+        Dictionary with key, scale, camelot code, and confidence score
+    """
+    # Extract chromagram and average across time
+    chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
+    chroma_mean = np.mean(chroma, axis=1)
+    chroma_mean = chroma_mean / (np.linalg.norm(chroma_mean) + 1e-6)  # Normalize
+
+    best_corr = -1
+    best_key = 'C'
+    best_scale = 'major'
+
+    # Test all 24 keys (12 major + 12 minor)
+    for i in range(12):
+        # Rotate profiles to test each key
+        major_rotated = np.roll(MAJOR_PROFILE, i)
+        minor_rotated = np.roll(MINOR_PROFILE, i)
+
+        # Normalize profiles
+        major_norm = major_rotated / np.linalg.norm(major_rotated)
+        minor_norm = minor_rotated / np.linalg.norm(minor_rotated)
+
+        # Correlate with chroma
+        major_corr = np.corrcoef(chroma_mean, major_norm)[0, 1]
+        minor_corr = np.corrcoef(chroma_mean, minor_norm)[0, 1]
+
+        if major_corr > best_corr:
+            best_corr = major_corr
+            best_key = NOTE_NAMES[i]
+            best_scale = 'major'
+
+        if minor_corr > best_corr:
+            best_corr = minor_corr
+            best_key = NOTE_NAMES[i]
+            best_scale = 'minor'
+
+    # Get Camelot code for DJ mixing
+    camelot = CAMELOT_MAJOR.get(best_key) if best_scale == 'major' else CAMELOT_MINOR.get(best_key)
+
+    return {
+        'key': best_key,
+        'scale': best_scale,
+        'camelot': camelot,
+        'confidence': round(float(best_corr), 3)
+    }
+
+
 def detect_sections_allin1(audio_path: str) -> Tuple[List[Dict], float, List[float], List[float]]:
     """
     Detect song sections using allin1 (All-In-One Music Structure Analyzer).
@@ -296,6 +372,10 @@ def analyze_audio(audio_path: str, output_path: Optional[str] = None,
     duration = len(y) / sr
     print(f"Duration: {duration:.1f}s")
 
+    # Detect musical key
+    print("Detecting key...")
+    key_data = detect_key(y, sr)
+
     sections = None
     beats = None
     downbeats = None
@@ -378,6 +458,12 @@ def analyze_audio(audio_path: str, output_path: Optional[str] = None,
         "bpm": round(bpm, 2),
         "time_signature": "4/4",
 
+        # Key data for harmonic mixing
+        "key": key_data['key'],
+        "key_scale": key_data['scale'],
+        "key_camelot": key_data['camelot'],
+        "key_confidence": key_data['confidence'],
+
         # Beat data
         "beats": beats,
         "beat_count": len(beats),
@@ -402,6 +488,7 @@ def analyze_audio(audio_path: str, output_path: Optional[str] = None,
     print(f"RESULTS: {path.name}")
     print(f"{'='*50}")
     print(f"  BPM: {analysis['bpm']}")
+    print(f"  Key: {analysis['key']} {analysis['key_scale']} ({analysis['key_camelot']})")
     print(f"  Duration: {analysis['duration']}s")
     print(f"  Beats: {analysis['beat_count']}")
     print(f"  Bars: {analysis['bar_count']}")
