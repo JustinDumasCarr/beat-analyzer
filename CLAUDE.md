@@ -1,18 +1,22 @@
 # Beat Analyzer
 
-Audio analysis service for extracting BPM, beats, downbeats, and song structure from audio files. Designed for beat-matching in DJ/mixing applications.
+Audio analysis service for extracting BPM, beats, downbeats, phrases, and song structure from audio files. Designed for beat-matching in DJ/mixing applications.
 
 ## Quick Start
 
 ```bash
-# Setup
-python3 -m venv venv
+# Setup (requires Python 3.11+)
+python3.11 -m venv venv
 source venv/bin/activate
 pip install cython wheel
 pip install -r requirements.txt
+pip install allin1  # For semantic section labels
 
-# Analyze a track
+# Analyze a track (uses allin1 ML model)
 python analyze.py /path/to/song.mp3 -o output.json
+
+# Fast mode (skip allin1, use MSAF/SSM fallback)
+python analyze.py /path/to/song.mp3 --fast -o output.json
 ```
 
 ## Project Structure
@@ -32,16 +36,20 @@ Analyzes audio files and extracts:
 - **BPM** - Tempo in beats per minute
 - **Beats** - Precise timestamp of every beat
 - **Downbeats** - Bar boundaries (first beat of each bar)
-- **Sections** - Song structure (intro, verse, chorus, etc.)
+- **Phrases** - 4-bar and 8-bar musical phrase groupings
+- **Energy** - Phrase classification (buildup/drop/stable/high/low)
+- **Sections** - Song structure with semantic labels (intro/verse/chorus/bridge/outro)
 
 ## Tech Stack
 
 | Component | Library | Purpose |
 |-----------|---------|---------|
-| Beat Detection | madmom (RNN) | Neural network beat tracking |
-| Downbeat Detection | madmom (DBN) | Bar boundary detection |
+| Section Detection | allin1 | ML model for semantic section labels |
+| Beat Detection | madmom (RNN) | Neural network beat tracking (fallback) |
+| Downbeat Detection | madmom (DBN) | Bar boundary detection (fallback) |
 | Audio Loading | librosa | Audio I/O and features |
-| Section Detection | librosa SSM | Self-similarity segmentation |
+| Section Fallback | MSAF (scluster) | Spectral clustering segmentation |
+| Section Fallback | librosa SSM | Self-similarity matrix (for short files) |
 
 ## Key Commands
 
@@ -49,8 +57,11 @@ Analyzes audio files and extracts:
 # Activate environment
 source venv/bin/activate
 
-# Analyze single file
+# Analyze with allin1 (slower, better labels)
 python analyze.py song.mp3 -o analysis.json
+
+# Fast mode (skip allin1)
+python analyze.py song.mp3 --fast -o analysis.json
 
 # Output raw JSON to stdout
 python analyze.py song.mp3 --json
@@ -59,19 +70,32 @@ python analyze.py song.mp3 --json
 pytest tests/
 ```
 
-## Current Limitations
+## Output Format
 
-1. **Section labels are placeholders** - Uses SSM clustering, not trained section classifier
-2. **Requires numpy<2.0** - madmom has compatibility issues with numpy 2.x
-3. **allin1 not working** - Better section detection blocked by natten/torch version conflicts
+```json
+{
+  "file": "song.mp3",
+  "bpm": 128.0,
+  "beats": [0.234, 0.702, ...],
+  "downbeats": [0.234, 2.104, ...],
+  "phrases": [
+    {"start": 0.234, "end": 7.734, "bar_count": 4, "phrase_number": 1, "energy_type": "buildup"},
+    ...
+  ],
+  "phrases_8bar": [...],
+  "sections": [
+    {"start": 0.0, "end": 15.5, "label": "intro"},
+    {"start": 15.5, "end": 45.2, "label": "verse"},
+    ...
+  ]
+}
+```
 
-## Future Improvements
+## Notes
 
-1. Get allin1 working (Python 3.10+, proper torch/natten versions)
-2. Add API server mode (FastAPI)
-3. Add batch processing
-4. Improve section labeling with ML model
-5. Add key detection (harmonic mixing)
+- **allin1 patched** - We implemented pure PyTorch shims in `dinat.py` to fix natten 0.21+ API incompatibility
+- **Short files (<10s)** - MSAF may fail, falls back to SSM
+- **Energy analysis** - Uses RMS + spectral centroid to classify phrase dynamics
 
 ## Integration with Spinola
 
@@ -79,6 +103,7 @@ This service will run on a server and provide beat analysis data to the Spinola 
 - Beat-matched music playback during spinning workouts
 - Clean mix transitions between songs
 - Tempo-synced workout intensity
+- Phrase-aligned section transitions
 
 ## Autonomous Rules
 

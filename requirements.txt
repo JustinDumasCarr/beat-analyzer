@@ -1,17 +1,21 @@
 # Core audio analysis
 librosa>=0.10.0
-madmom>=0.16.1
-
-# Scientific computing
-numpy>=1.23.0,<2.0  # madmom requires numpy<2.0
 scipy>=1.10.0
+
+# madmom - install from GitHub for numpy 2.x support
+# pip install git+https://github.com/CPJKU/madmom
+madmom @ git+https://github.com/CPJKU/madmom
 
 # Build dependencies (for madmom)
 cython>=0.25
 wheel
 
-# Optional: for allin1 (better section detection)
-# Requires Python 3.10+ and compatible torch/natten versions
-# allin1>=1.1.0
-# torch>=2.0.0
-# natten>=0.17.0
+# MSAF for section detection (recommended)
+msaf>=0.1.80
+
+# Scientific computing
+numpy>=1.23.0
+
+# Note: allin1 is currently blocked due to natten API incompatibility
+# The natten library changed its API in v0.21+ and allin1 hasn't been updated
+# See: https://github.com/mir-aidj/all-in-one/issues/30
