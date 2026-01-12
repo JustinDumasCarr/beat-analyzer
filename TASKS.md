@@ -9,10 +9,6 @@
   - POST /analyze with audio file upload
   - GET /status for job tracking
 
-- [ ] **Add batch processing**
-  - Analyze multiple files at once
-  - Output combined JSON/CSV
-
 - [ ] **Dockerize**
   - Create Dockerfile for deployment
   - Include all dependencies
@@ -31,6 +27,7 @@
 - [x] **Phrase detection** - 4-bar and 8-bar phrase grouping from downbeats
 - [x] **Energy analysis** - Classify phrases as buildup/drop/stable/high/low using RMS + spectral centroid
 - [x] **Key detection** - Musical key with Camelot notation for DJ harmonic mixing (Krumhansl-Schmuckler algorithm)
+- [x] **Batch processing** - Analyze multiple files from directory with parallel processing support (--batch, --workers)
 
 ## Fixed Issues
 

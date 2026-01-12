@@ -58,7 +58,7 @@ Analyzes audio files and extracts:
 # Activate environment
 source venv/bin/activate
 
-# Analyze with allin1 (slower, better labels)
+# Analyze single file
 python analyze.py song.mp3 -o analysis.json
 
 # Fast mode (skip allin1)
@@ -66,6 +66,18 @@ python analyze.py song.mp3 --fast -o analysis.json
 
 # Output raw JSON to stdout
 python analyze.py song.mp3 --json
+
+# Batch mode - analyze directory
+python analyze.py --batch /path/to/music -o results.json
+
+# Batch with parallel processing (4 workers)
+python analyze.py --batch /path/to/music -w 4 -o results.json
+
+# Batch with extension filter
+python analyze.py --batch /path/to/music --ext mp3,wav -o results.json
+
+# Batch recursive search
+python analyze.py --batch /path/to/music --recursive -o results.json
 
 # Run tests (when added)
 pytest tests/

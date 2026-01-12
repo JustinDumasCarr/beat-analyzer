@@ -7,7 +7,9 @@ Uses madmom for beats, allin1 for sections, with phrase detection from downbeats
 import argparse
 import json
 import sys
+import time
 import warnings
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import Optional, List, Dict, Tuple
 
@@ -517,11 +519,113 @@ def analyze_audio(audio_path: str, output_path: Optional[str] = None,
     return analysis
 
 
+def _analyze_single_file(args: tuple) -> dict:
+    """Worker function for parallel batch processing."""
+    file_path, use_allin1 = args
+    try:
+        result = analyze_audio(str(file_path), output_path=None, use_allin1=use_allin1)
+        return {"success": True, "result": result}
+    except Exception as e:
+        return {
+            "success": False,
+            "error": {
+                "file": Path(file_path).name,
+                "path": str(file_path),
+                "error": str(e)
+            }
+        }
+
+
+def batch_analyze(directory: str, extensions: List[str], recursive: bool = False,
+                  use_allin1: bool = True, workers: int = 1) -> dict:
+    """
+    Analyze all audio files in a directory.
+
+    Args:
+        directory: Path to directory containing audio files
+        extensions: List of file extensions to include
+        recursive: Whether to search subdirectories
+        use_allin1: Whether to use allin1 for analysis
+        workers: Number of parallel workers (1 = sequential)
+
+    Returns:
+        Dictionary with batch metadata and results array
+    """
+    start_time = time.time()
+    dir_path = Path(directory)
+
+    if not dir_path.exists():
+        raise FileNotFoundError(f"Directory not found: {directory}")
+
+    # Find all matching files
+    files = []
+    for ext in extensions:
+        pattern = f"**/*.{ext}" if recursive else f"*.{ext}"
+        files.extend(dir_path.glob(pattern))
+
+    files = sorted(set(files))  # Remove duplicates, sort
+
+    if not files:
+        raise ValueError(f"No audio files found in {directory}")
+
+    print(f"Found {len(files)} audio files")
+    print(f"Workers: {workers}")
+    print("=" * 50)
+
+    results = []
+    errors = []
+
+    if workers == 1:
+        # Sequential processing
+        for i, file_path in enumerate(files, 1):
+            print(f"\n[{i}/{len(files)}] {file_path.name}")
+            outcome = _analyze_single_file((file_path, use_allin1))
+            if outcome["success"]:
+                results.append(outcome["result"])
+            else:
+                errors.append(outcome["error"])
+                print(f"  ERROR: {outcome['error']['error']}")
+    else:
+        # Parallel processing
+        work_items = [(f, use_allin1) for f in files]
+        completed = 0
+
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            futures = {executor.submit(_analyze_single_file, item): item[0] for item in work_items}
+
+            for future in as_completed(futures):
+                completed += 1
+                file_path = futures[future]
+                print(f"[{completed}/{len(files)}] {file_path.name}")
+
+                outcome = future.result()
+                if outcome["success"]:
+                    results.append(outcome["result"])
+                else:
+                    errors.append(outcome["error"])
+                    print(f"  ERROR: {outcome['error']['error']}")
+
+    elapsed = time.time() - start_time
+
+    return {
+        "batch": {
+            "directory": str(dir_path.absolute()),
+            "total_files": len(files),
+            "successful": len(results),
+            "failed": len(errors),
+            "workers": workers,
+            "processing_time_seconds": round(elapsed, 2)
+        },
+        "results": results,
+        "errors": errors if errors else None
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Analyze audio for BPM, beats, phrases, and structure"
     )
-    parser.add_argument("audio", help="Path to audio file")
+    parser.add_argument("audio", nargs="?", help="Path to audio file (required unless --batch)")
     parser.add_argument(
         "-o", "--output",
         help="Output JSON file path (optional)",
@@ -537,16 +641,74 @@ def main():
         action="store_true",
         help="Skip allin1 (faster but no semantic section labels)"
     )
+    parser.add_argument(
+        "--batch",
+        metavar="DIR",
+        help="Batch mode: analyze all audio files in directory"
+    )
+    parser.add_argument(
+        "--ext",
+        default="mp3,wav,flac,m4a,ogg",
+        help="File extensions to include (comma-separated, default: mp3,wav,flac,m4a,ogg)"
+    )
+    parser.add_argument(
+        "--recursive", "-r",
+        action="store_true",
+        help="Recursively search subdirectories"
+    )
+    parser.add_argument(
+        "--workers", "-w",
+        type=int,
+        default=1,
+        help="Number of parallel workers (default: 1 = sequential)"
+    )
 
     args = parser.parse_args()
 
-    try:
-        result = analyze_audio(args.audio, args.output, use_allin1=not args.fast)
+    # Validate arguments
+    if not args.batch and not args.audio:
+        parser.error("audio file path required (or use --batch for directory)")
 
-        if args.json:
-            print(json.dumps(result, indent=2))
+    try:
+        if args.batch:
+            # Batch mode
+            extensions = [e.strip().lstrip('.') for e in args.ext.split(',')]
+            result = batch_analyze(
+                args.batch,
+                extensions,
+                recursive=args.recursive,
+                use_allin1=not args.fast,
+                workers=args.workers
+            )
+
+            # Print summary
+            print(f"\n{'='*50}")
+            print(f"BATCH COMPLETE")
+            print(f"{'='*50}")
+            print(f"  Processed: {result['batch']['total_files']} files")
+            print(f"  Successful: {result['batch']['successful']}")
+            print(f"  Failed: {result['batch']['failed']}")
+            print(f"  Time: {result['batch']['processing_time_seconds']}s")
+
+            # Save results
+            if args.output:
+                with open(args.output, 'w') as f:
+                    json.dump(result, f, indent=2)
+                print(f"\nSaved to: {args.output}")
+
+            if args.json:
+                print(json.dumps(result, indent=2))
+        else:
+            # Single file mode (existing behavior)
+            result = analyze_audio(args.audio, args.output, use_allin1=not args.fast)
+
+            if args.json:
+                print(json.dumps(result, indent=2))
 
     except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
