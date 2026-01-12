@@ -1,0 +1,17 @@
+# Core audio analysis
+librosa>=0.10.0
+madmom>=0.16.1
+
+# Scientific computing
+numpy>=1.23.0,<2.0  # madmom requires numpy<2.0
+scipy>=1.10.0
+
+# Build dependencies (for madmom)
+cython>=0.25
+wheel
+
+# Optional: for allin1 (better section detection)
+# Requires Python 3.10+ and compatible torch/natten versions
+# allin1>=1.1.0
+# torch>=2.0.0
+# natten>=0.17.0
