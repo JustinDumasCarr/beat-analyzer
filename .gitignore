@@ -43,3 +43,4 @@ Thumbs.db
 *.ogg
 analysis_output.json
 outputs/
+.features_msaf_tmp.json
