@@ -1,0 +1,72 @@
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!requirements.txt
+
+# Local database and temp files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Test files
+tests/
+test_*.py
+*_test.py
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor backups
+*~
+*.bak
+
+# Jupyter notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Sample/test audio files
+*.mp3
+*.wav
+*.flac
+*.m4a
+*.ogg
+
+# Output files
+output/
+results/
+*.json

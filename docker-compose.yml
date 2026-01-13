@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  beat-analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: beat-analyzer:latest
+    container_name: beat-analyzer
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist database across restarts
+      - beat-analyzer-db:/data/db
+      # Persist uploaded files (optional - for trim/stems output)
+      - beat-analyzer-uploads:/data/uploads
+      # Cache ML models to avoid re-downloading
+      - beat-analyzer-cache:/home/appuser/.cache
+    environment:
+      - DATABASE_PATH=/data/db/beat_analyzer.db
+      - UPLOAD_DIR=/data/uploads
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  beat-analyzer-db:
+    name: beat-analyzer-db
+  beat-analyzer-uploads:
+    name: beat-analyzer-uploads
+  beat-analyzer-cache:
+    name: beat-analyzer-cache

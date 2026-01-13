@@ -44,3 +44,5 @@ Thumbs.db
 analysis_output.json
 outputs/
 .features_msaf_tmp.json
+beat_analyzer.db
+estimations/
